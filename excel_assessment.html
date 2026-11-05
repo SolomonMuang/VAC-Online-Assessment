@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Assessment & Admin Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .active-tab { border-bottom: 3px solid #16a34a; color: #16a34a; font-weight: bold; }
+        .grid-cell:focus { outline: 2px solid #16a34a; z-index: 10; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800 flex flex-col font-sans">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center shadow-lg">
+        <div class="flex items-center space-x-3">
+            <div class="bg-emerald-600 p-2 rounded-lg text-white font-bold">
+                <i class="fa-solid fa-file-excel text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight">VAC Online Assessment Portal</h1>
+                <p class="text-xs text-gray-400">IT Department - Rayburn College • Online Evaluation System</p>
+            </div>
+        </div>
+
+        <!-- Timer & Dynamic Info -->
+        <div id="headerTimerArea" class="hidden flex items-center space-x-6">
+            <div class="bg-slate-800 px-4 py-2 rounded-lg border border-slate-700 flex items-center space-x-3">
+                <i class="fa-regular fa-clock text-emerald-400 text-lg animate-pulse"></i>
+                <div>
+                    <div class="text-xs text-gray-400 uppercase font-semibold">Time Remaining</div>
+                    <div id="timerDisplay" class="text-xl font-mono font-bold text-emerald-400">30:00</div>
+                </div>
+            </div>
+            <button onclick="submitAssessment()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2 rounded-lg transition shadow">
+                Submit Test
+            </button>
+        </div>
+
+        <!-- Admin Control Toggle / Logout -->
+        <div class="flex items-center space-x-3">
+            <button id="adminToggleBtn" onclick="toggleAdminAuthModal()" class="text-sm bg-slate-800 hover:bg-slate-700 text-gray-300 border border-slate-700 px-3 py-1.5 rounded-lg transition flex items-center space-x-2">
+                <i class="fa-solid fa-user-shield"></i>
+                <span>Admin Login</span>
+            </button>
+            <button id="adminLogoutBtn" onclick="logoutAdmin()" class="hidden text-sm bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg transition flex items-center space-x-2 font-semibold">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Admin Logout</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 p-6 max-w-7xl w-full mx-auto">
+
+        <!-- 1. LOGIN SCREEN -->
+        <div id="loginScreen" class="max-w-md mx-auto my-12 bg-white p-8 rounded-2xl shadow-xl border border-gray-200">
+            <div class="text-center mb-6">
+                <div class="inline-block p-4 bg-emerald-50 rounded-full text-emerald-600 mb-3">
+                    <i class="fa-solid fa-file-excel text-4xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900">VAC Student Login Portal</h2>
+                <p class="text-sm text-gray-500 mt-1">Please enter your candidate credentials to start the 30-minute Excel examination.</p>
+            </div>
+
+            <form id="studentLoginForm" onsubmit="startAssessment(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Full Name</label>
+                    <input type="text" id="studName" class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Roll Number</label>
+                    <input type="text" id="studRoll" class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Department</label>
+                        <input type="text" id="studDept" required placeholder="e.g. Computer Science" class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Semester</label>
+                        <select id="studSem" required class="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
+                            <option value="">Select</option>
+                            <option value="Semester 1">Semester 1</option>
+                            <option value="Semester 2">Semester 2</option>
+                            <option value="Semester 3">Semester 3</option>
+                            <option value="Semester 4">Semester 4</option>
+                            <option value="Semester 5">Semester 5</option>
+                            <option value="Semester 6">Semester 6</option>
+                            <option value="Semester 7">Semester 7</option>
+                            <option value="Semester 8">Semester 8</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="bg-amber-50 border-l-4 border-amber-500 p-3 text-xs text-amber-800 rounded">
+                    <p class="font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Examination Rules:</p>
+                    <ul class="list-disc list-inside mt-1 space-y-0.5">
+                        <li>Timer starts immediately at 30:00 upon logging in.</li>
+                        <li>Automated portal submission occurs when the clock reaches 00:00.</li>
+                    </ul>
+                </div>
+
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg shadow-lg transition">
+                    Start Excel Assessment
+                </button>
+            </form>
+        </div>
+
+        <!-- 2. ASSESSMENT INTERFACE -->
+        <div id="assessmentScreen" class="hidden space-y-6">
+            
+            <!-- Student Banner -->
+            <div class="bg-white p-4 rounded-xl shadow border border-gray-200 flex justify-between items-center">
+                <div class="flex items-center space-x-4">
+                    <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center text-lg" id="candidateAvatar">
+                        JD
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-gray-900" id="dispStudName">John Doe</h3>
+                        <p class="text-xs text-gray-500" id="dispStudMeta">Roll No: -- • Dept: -- • Sem: --</p>
+                    </div>
+                </div>
+                <span class="bg-emerald-100 text-emerald-800 text-xs font-semibold px-3 py-1 rounded-full border border-emerald-200">
+                    <i class="fa-solid fa-circle text-[8px] text-emerald-500 mr-1 animate-ping"></i> Test In Progress
+                </span>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <div class="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
+                <div class="flex border-b border-gray-200 bg-gray-50">
+                    <button onclick="switchTab('mcq')" id="tabBtn-mcq" class="flex-1 py-3 px-6 text-sm font-semibold text-gray-600 hover:text-emerald-600 transition flex items-center justify-center space-x-2 active-tab">
+                        <i class="fa-solid fa-list-check"></i>
+                        <span>Part A: Multiple Choice Questions (10)</span>
+                    </button>
+                    <button onclick="switchTab('desc')" id="tabBtn-desc" class="flex-1 py-3 px-6 text-sm font-semibold text-gray-600 hover:text-emerald-600 transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        <span>Part B: Descriptive Theory</span>
+                    </button>
+                    <button onclick="switchTab('excel')" id="tabBtn-excel" class="flex-1 py-3 px-6 text-sm font-semibold text-gray-600 hover:text-emerald-600 transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-table"></i>
+                        <span>Part C: Virtual Excel Lab</span>
+                    </button>
+                </div>
+
+                <div class="p-6">
+                    <!-- SECTION A: MCQs -->
+                    <div id="section-mcq" class="space-y-6">
+                        <div class="flex justify-between items-center border-b pb-3">
+                            <h4 class="font-bold text-gray-800">Part A: Select the correct option for each question</h4>
+                            <span class="text-xs text-gray-500">10 Questions • 1 Mark Each</span>
+                        </div>
+                        <div id="mcqContainer" class="space-y-6"></div>
+                    </div>
+
+                    <!-- SECTION B: DESCRIPTIVE -->
+                    <div id="section-desc" class="hidden space-y-4">
+                        <div class="border-b pb-3">
+                            <h4 class="font-bold text-gray-800">Part B: Descriptive Answer</h4>
+                            <p class="text-sm text-gray-600 mt-1"><strong>Q11.</strong> Explain the uses and importance of Microsoft Excel. Describe any five basic features of Excel and explain how formulas and functions help users perform calculations efficiently.</p>
+                        </div>
+                        <div>
+                            <textarea id="descriptiveAnswer" rows="12" oninput="updateWordCount()" placeholder="Type your comprehensive answer here..." class="w-full p-4 border rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none font-sans text-sm leading-relaxed"></textarea>
+                            <div class="flex justify-between items-center mt-2 text-xs text-gray-500">
+                                <span>Tip: Be clear and provide structured points.</span>
+                                <span id="wordCount">0 words | 0 characters</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SECTION C: VIRTUAL EXCEL LAB -->
+                    <div id="section-excel" class="hidden space-y-4">
+                        <div class="bg-blue-50 border-l-4 border-blue-500 p-3 rounded text-xs text-blue-900 flex justify-between items-center">
+                            <div>
+                                <strong>Practical Task Instruction:</strong> Complete the table below by manually typing formula calculations in cells <strong class="underline">C7</strong> (Total Sales using `=SUM(...)`) and <strong class="underline">C8</strong> (Average Sales using `=AVERAGE(...)`).
+                            </div>
+                            <button onclick="resetExcelLabData()" class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition">
+                                Reset Task Data
+                            </button>
+                        </div>
+
+                        <!-- Virtual Toolbar -->
+                        <div class="bg-slate-100 p-2 rounded-lg border border-gray-300 flex flex-wrap items-center gap-2 text-xs">
+                            <div class="flex items-center space-x-1 border-r pr-2">
+                                <button onclick="formatCell('bold')" title="Bold" class="p-1.5 hover:bg-gray-200 rounded font-bold">B</button>
+                                <button onclick="formatCell('italic')" title="Italic" class="p-1.5 hover:bg-gray-200 rounded italic">I</button>
+                            </div>
+                            <div class="flex items-center space-x-2 border-r pr-2">
+                                <span>Bg:</span>
+                                <input type="color" id="cellBgColor" onchange="formatCell('bg', this.value)" class="w-6 h-6 border rounded cursor-pointer">
+                                <span>Text:</span>
+                                <input type="color" id="cellTextColor" onchange="formatCell('color', this.value)" class="w-6 h-6 border rounded cursor-pointer">
+                            </div>
+                            <div class="flex items-center space-x-2 bg-white px-3 py-1 rounded border flex-1">
+                                <span class="font-mono text-gray-400 font-bold" id="activeCellLabel">A1</span>
+                                <span class="text-gray-300">|</span>
+                                <i class="fa-solid fa-calculator text-gray-400"></i>
+                                <input type="text" id="formulaBar" oninput="updateActiveCellFromFormulaBar(this.value)" placeholder="Formula bar (e.g. =SUM(C2:C6))" class="w-full focus:outline-none font-mono text-xs">
+                            </div>
+                        </div>
+
+                        <!-- Interactive Grid -->
+                        <div class="overflow-x-auto border border-gray-300 rounded-lg shadow-inner max-h-[450px]">
+                            <table id="virtualExcelTable" class="w-full border-collapse bg-white text-xs font-mono">
+                                <!-- Generated Dynamically -->
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. ADMIN PORTAL (COMMON FOR BOTH) -->
+        <div id="adminScreen" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow border border-gray-200 flex justify-between items-center">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900 flex items-center space-x-2">
+                        <i class="fa-solid fa-user-shield text-slate-700"></i>
+                        <span>Central Assessment Administration Portal</span>
+                    </h2>
+                    <p class="text-xs text-gray-500 mt-1">Live Evaluation Dashboard • Common Database for Excel & PowerPoint Exams</p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <button onclick="exportAllToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg text-xs flex items-center space-x-2 shadow">
+                        <i class="fa-solid fa-file-excel"></i>
+                        <span>Export All to Excel (.xlsx)</span>
+                    </button>
+                    <button onclick="clearAllData()" class="bg-red-100 hover:bg-red-200 text-red-700 font-semibold px-3 py-2 rounded-lg text-xs transition">
+                        Clear Database
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Overview -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="text-xs text-gray-500 uppercase font-bold">Total Submissions</div>
+                    <div class="text-2xl font-bold text-gray-900 mt-1" id="statTotal">0</div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="text-xs text-gray-500 uppercase font-bold">Excel Portal Tests</div>
+                    <div class="text-2xl font-bold text-emerald-600 mt-1" id="statExcel">0</div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="text-xs text-gray-500 uppercase font-bold">PowerPoint Tests</div>
+                    <div class="text-2xl font-bold text-orange-600 mt-1" id="statPPT">0</div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="text-xs text-gray-500 uppercase font-bold">Average MCQ Score</div>
+                    <div class="text-2xl font-bold text-blue-600 mt-1" id="statAvgScore">0 / 10</div>
+                </div>
+            </div>
+
+            <!-- Submissions Table -->
+            <div class="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
+                <div class="p-4 border-b bg-gray-50 font-bold text-sm text-gray-700">Candidate Evaluation Records</div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-100 text-slate-700 uppercase font-bold border-b">
+                            <tr>
+                                <th class="p-3">Candidate Info</th>
+                                <th class="p-3">Portal Exam</th>
+                                <th class="p-3">MCQ Score</th>
+                                <th class="p-3">Descriptive Status</th>
+                                <th class="p-3">Submission Time</th>
+                                <th class="p-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminSubmissionsTable" class="divide-y divide-gray-200">
+                            <!-- Rows generated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal: Admin Auth -->
+    <div id="adminAuthModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white max-w-sm w-full rounded-2xl p-6 shadow-2xl border">
+            <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center space-x-2">
+                <i class="fa-solid fa-lock text-slate-700"></i>
+                <span>Admin Authentication</span>
+            </h3>
+            <form onsubmit="verifyAdminLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Username</label>
+                    <input type="text" id="adminUser" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-slate-800 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Password</label>
+                    <input type="password" id="adminPass" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-slate-800 focus:outline-none">
+                </div>
+                <div id="adminAuthError" class="text-xs text-red-600 hidden font-semibold">Invalid credentials. Try again.</div>
+                <div class="flex justify-end space-x-2 pt-2">
+                    <button type="button" onclick="toggleAdminAuthModal()" class="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+                    <button type="submit" class="px-4 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow">Login as Admin</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Student Detail View -->
+    <div id="studentDetailModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white max-w-3xl w-full rounded-2xl p-6 shadow-2xl border space-y-4 my-8">
+            <div class="flex justify-between items-start border-b pb-3">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900" id="detailStudentName">Candidate Detail</h3>
+                    <p class="text-xs text-gray-500" id="detailStudentMeta">Meta Details</p>
+                </div>
+                <button onclick="closeDetailModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+            </div>
+
+            <div id="detailModalBody" class="space-y-4 text-xs">
+                <!-- Data populated dynamically -->
+            </div>
+
+            <div class="border-t pt-3 flex justify-between items-center">
+                <button id="downloadIndividualExcelBtn" class="bg-emerald-600 text-white font-bold px-3 py-1.5 rounded text-xs flex items-center space-x-1">
+                    <i class="fa-solid fa-file-excel"></i>
+                    <span>Download Report (.xlsx)</span>
+                </button>
+                <button onclick="closeDetailModal()" class="bg-gray-200 text-gray-800 font-bold px-4 py-1.5 rounded text-xs">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DATA & STATE
+        const mcqs = [
+            { id: 1, q: "What is Microsoft Excel primarily used for?", options: ["Creating presentations", "Performing calculations and managing data", "Editing videos", "Browsing the internet"], ans: 1 },
+            { id: 2, q: "What is the intersection of a row and a column called?", options: ["Table", "Worksheet", "Cell", "Workbook"], ans: 2 },
+            { id: 3, q: "Which symbol is used to begin a formula in Excel?", options: ["+", "=", "#", "@"], ans: 1 },
+            { id: 4, q: "What is the default file extension of a modern Excel workbook?", options: [".docx", ".pptx", ".xlsx", ".txt"], ans: 2 },
+            { id: 5, q: "Which function is used to calculate the sum of a range of numbers?", options: ["COUNT()", "AVERAGE()", "SUM()", "MAX()"], ans: 2 },
+            { id: 6, q: "Which function is used to calculate the average of selected numbers?", options: ["SUM()", "AVERAGE()", "MIN()", "COUNT()"], ans: 1 },
+            { id: 7, q: "In Excel, rows are identified by:", options: ["Letters", "Numbers", "Symbols", "Colours"], ans: 1 },
+            { id: 8, q: "In Excel, columns are identified by:", options: ["Numbers", "Letters", "Symbols", "Formulas"], ans: 1 },
+            { id: 9, q: "Which keyboard shortcut is used to save an Excel workbook?", options: ["Ctrl + C", "Ctrl + V", "Ctrl + S", "Ctrl + X"], ans: 2 },
+            { id: 10, q: "Which function in Microsoft Excel is used to count the number of cells that meet a specific condition?", options: ["SUMIF()", "COUNT()", "COUNTIF()", "COUNTA()"], ans: 2 }
+        ];
+
+        let studentProfile = null;
+        let timerInterval = null;
+        let secondsRemaining = 30 * 60;
+        let excelGridData = {};
+        let activeCell = "C7";
+        let broadcastChannel = new BroadcastChannel("assessment_channel");
+
+        // INITIALIZATION
+        window.addEventListener("DOMContentLoaded", () => {
+            renderMCQs();
+            initVirtualExcelGrid();
+            listenBroadcast();
+        });
+
+        function listenBroadcast() {
+            broadcastChannel.onmessage = (event) => {
+                if (event.data === "new_submission" && !document.getElementById('adminScreen').classList.contains('hidden')) {
+                    renderAdminDashboard();
+                }
+            };
+        }
+
+        // RENDER MCQS
+        function renderMCQs() {
+            const container = document.getElementById("mcqContainer");
+            container.innerHTML = mcqs.map((q, idx) => `
+                <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                    <p class="font-bold text-sm text-gray-800 mb-3">${idx + 1}. ${q.q}</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                        ${q.options.map((opt, oIdx) => `
+                            <label class="flex items-center space-x-2 p-2 bg-white rounded border hover:bg-emerald-50 cursor-pointer">
+                                <input type="radio" name="mcq_${q.id}" value="${oIdx}" class="text-emerald-600 focus:ring-emerald-500">
+                                <span>${opt}</span>
+                            </label>
+                        `).join("")}
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        // VIRTUAL EXCEL LAB ENGINE
+        function initVirtualExcelGrid() {
+            const cols = ["A", "B", "C", "D", "E"];
+            const rows = 10;
+            
+            // Set initial dataset
+            excelGridData = {
+                "B1": { val: "Item", bold: true, bg: "#e2e8f0" },
+                "C1": { val: "Sales (INR)", bold: true, bg: "#e2e8f0" },
+                "B2": { val: "Apples" }, "C2": { val: "5000" },
+                "B3": { val: "Bananas" }, "C3": { val: "3200" },
+                "B4": { val: "Oranges" }, "C4": { val: "4100" },
+                "B5": { val: "Mangoes" }, "C5": { val: "6800" },
+                "B6": { val: "Grapes" }, "C6": { val: "2900" },
+                "B7": { val: "Total Sales (SUM)", bold: true },
+                "B8": { val: "Average Sales (AVERAGE)", bold: true },
+                "C7": { val: "" }, // Blank for student
+                "C8": { val: "" }  // Blank for student
+            };
+
+            renderGridTable(cols, rows);
+        }
+
+        function resetExcelLabData() {
+            initVirtualExcelGrid();
+        }
+
+        function renderGridTable(cols, rows) {
+            const table = document.getElementById("virtualExcelTable");
+            let html = `<thead><tr class="bg-slate-200 text-slate-700"><th class="p-2 border w-10 text-center">#</th>`;
+            cols.forEach(c => html += `<th class="p-2 border text-center font-bold">${c}</th>`);
+            html += `</tr></thead><tbody>`;
+
+            for (let r = 1; r <= rows; r++) {
+                html += `<tr><td class="bg-slate-100 border text-center font-bold text-slate-500">${r}</td>`;
+                cols.forEach(c => {
+                    const cellKey = `${c}${r}`;
+                    const cell = excelGridData[cellKey] || { val: "" };
+                    const displayVal = evaluateCellValue(cell.val);
+
+                    const style = `
+                        ${cell.bold ? "font-weight: bold;" : ""}
+                        ${cell.italic ? "font-style: italic;" : ""}
+                        ${cell.bg ? `background-color: ${cell.bg};` : ""}
+                        ${cell.color ? `color: ${cell.color};` : ""}
+                    `;
+
+                    html += `
+                        <td id="cell_${cellKey}" onclick="selectCell('${cellKey}')" style="${style}" class="border p-2 min-w-[100px] h-8 grid-cell bg-white cursor-pointer hover:bg-emerald-50">
+                            <input type="text" value="${displayVal}" onblur="onCellInputBlur('${cellKey}', this.value)" class="w-full h-full bg-transparent border-none focus:outline-none font-mono text-xs" />
+                        </td>
+                    `;
+                });
+                html += `</tr>`;
+            }
+            html += `</tbody>`;
+            table.innerHTML = html;
+        }
+
+        function evaluateCellValue(val) {
+            if (!val || typeof val !== 'string' || !val.startsWith('=')) return val;
+            const cleanVal = val.toUpperCase().trim();
+            if (cleanVal.startsWith('=SUM(')) {
+                // Parse range like C2:C6
+                return calculateSum(cleanVal);
+            } else if (cleanVal.startsWith('=AVERAGE(')) {
+                return calculateAvg(cleanVal);
+            }
+            return val;
+        }
+
+        function calculateSum(formula) {
+            const range = formula.replace('=SUM(', '').replace(')', '').split(':');
+            if (range.length === 2) {
+                const nums = getRangeValues(range[0], range[1]);
+                return nums.reduce((a, b) => a + b, 0);
+            }
+            return "#ERR";
+        }
+
+        function calculateAvg(formula) {
+            const range = formula.replace('=AVERAGE(', '').replace(')', '').split(':');
+            if (range.length === 2) {
+                const nums = getRangeValues(range[0], range[1]);
+                return nums.length ? (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(2) : 0;
+            }
+            return "#ERR";
+        }
+
+        function getRangeValues(startCell, endCell) {
+            const startCol = startCell.charAt(0);
+            const startRow = parseInt(startCell.slice(1));
+            const endRow = parseInt(endCell.slice(1));
+            let vals = [];
+
+            for (let r = startRow; r <= endRow; r++) {
+                const key = `${startCol}${r}`;
+                const val = parseFloat(excelGridData[key]?.val || 0);
+                if (!isNaN(val)) vals.push(val);
+            }
+            return vals;
+        }
+
+        function selectCell(key) {
+            activeCell = key;
+            document.getElementById("activeCellLabel").innerText = key;
+            document.getElementById("formulaBar").value = excelGridData[key]?.val || "";
+        }
+
+        function onCellInputBlur(key, value) {
+            if (!excelGridData[key]) excelGridData[key] = {};
+            excelGridData[key].val = value;
+            renderGridTable(["A", "B", "C", "D", "E"], 10);
+        }
+
+        function updateActiveCellFromFormulaBar(val) {
+            if (!excelGridData[activeCell]) excelGridData[activeCell] = {};
+            excelGridData[activeCell].val = val;
+            renderGridTable(["A", "B", "C", "D", "E"], 10);
+        }
+
+        function formatCell(type, val) {
+            if (!excelGridData[activeCell]) excelGridData[activeCell] = {};
+            if (type === 'bold') excelGridData[activeCell].bold = !excelGridData[activeCell].bold;
+            if (type === 'italic') excelGridData[activeCell].italic = !excelGridData[activeCell].italic;
+            if (type === 'bg') excelGridData[activeCell].bg = val;
+            if (type === 'color') excelGridData[activeCell].color = val;
+            renderGridTable(["A", "B", "C", "D", "E"], 10);
+        }
+
+        // TAB SWITCHING
+        function switchTab(tab) {
+            ['mcq', 'desc', 'excel'].forEach(t => {
+                document.getElementById(`section-${t}`).classList.add('hidden');
+                document.getElementById(`tabBtn-${t}`).classList.remove('active-tab');
+            });
+            document.getElementById(`section-${tab}`).classList.remove('hidden');
+            document.getElementById(`tabBtn-${tab}`).classList.add('active-tab');
+        }
+
+        // STUDENT FLOW
+        function startAssessment(e) {
+            e.preventDefault();
+            studentProfile = {
+                name: document.getElementById("studName").value,
+                roll: document.getElementById("studRoll").value,
+                dept: document.getElementById("studDept").value,
+                sem: document.getElementById("studSem").value,
+                startTime: new Date().toLocaleTimeString()
+            };
+
+            document.getElementById("dispStudName").innerText = studentProfile.name;
+            document.getElementById("dispStudMeta").innerText = `Roll No: ${studentProfile.roll} • Dept: ${studentProfile.dept} • ${studentProfile.sem}`;
+            document.getElementById("candidateAvatar").innerText = studentProfile.name.split(" ").map(n=>n[0]).join("").toUpperCase();
+
+            document.getElementById("loginScreen").classList.add("hidden");
+            document.getElementById("assessmentScreen").classList.remove("hidden");
+            document.getElementById("headerTimerArea").classList.remove("hidden");
+
+            startTimer();
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                secondsRemaining--;
+                let m = Math.floor(secondsRemaining / 60);
+                let s = secondsRemaining % 60;
+                document.getElementById("timerDisplay").innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+
+                if (secondsRemaining <= 0) {
+                    clearInterval(timerInterval);
+                    alert("Time is up! Submitting your assessment.");
+                    submitAssessment();
+                }
+            }, 1000);
+        }
+
+        function updateWordCount() {
+            const text = document.getElementById("descriptiveAnswer").value.trim();
+            const words = text ? text.split(/\s+/).length : 0;
+            document.getElementById("wordCount").innerText = `${words} words | ${text.length} characters`;
+        }
+
+        function submitAssessment() {
+            clearInterval(timerInterval);
+
+            // Calculate MCQ Score
+            let score = 0;
+            let mcqAnswers = {};
+            mcqs.forEach(q => {
+                const selected = document.querySelector(`input[name="mcq_${q.id}"]:checked`);
+                const val = selected ? parseInt(selected.value) : null;
+                mcqAnswers[q.id] = val;
+                if (val === q.ans) score++;
+            });
+
+            const submission = {
+                id: Date.now(),
+                portalType: "Excel Assessment",
+                student: studentProfile,
+                score: score,
+                mcqAnswers: mcqAnswers,
+                descriptive: document.getElementById("descriptiveAnswer").value,
+                excelData: excelGridData,
+                submittedAt: new Date().toLocaleString()
+            };
+
+            // Save to localStorage
+            const existing = JSON.parse(localStorage.getItem("assessment_submissions") || "[]");
+            existing.push(submission);
+            localStorage.setItem("assessment_submissions", JSON.stringify(existing));
+
+            // Broadcast to open admin tabs
+            broadcastChannel.postMessage("new_submission");
+
+            alert("Assessment submitted successfully!");
+            location.reload();
+        }
+
+        // ADMIN PORTAL LOGIC
+        function toggleAdminAuthModal() {
+            document.getElementById("adminAuthModal").classList.toggle("hidden");
+        }
+
+        function verifyAdminLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById("adminUser").value;
+            const p = document.getElementById("adminPass").value;
+
+            if (u === "Admin" && p === "Trojan1011") {
+                toggleAdminAuthModal();
+                showAdminDashboard();
+            } else {
+                document.getElementById("adminAuthError").classList.remove("hidden");
+            }
+        }
+
+        function showAdminDashboard() {
+            document.getElementById("loginScreen").classList.add("hidden");
+            document.getElementById("assessmentScreen").classList.add("hidden");
+            document.getElementById("headerTimerArea").classList.add("hidden");
+            document.getElementById("adminToggleBtn").classList.add("hidden");
+            
+            document.getElementById("adminLogoutBtn").classList.remove("hidden");
+            document.getElementById("adminScreen").classList.remove("hidden");
+
+            renderAdminDashboard();
+        }
+
+        function logoutAdmin() {
+            if (confirm("Are you sure you want to log out of Admin mode?")) {
+                location.reload();
+            }
+        }
+
+        function renderAdminDashboard() {
+            const data = JSON.parse(localStorage.getItem("assessment_submissions") || "[]");
+            
+            // Stats
+            document.getElementById("statTotal").innerText = data.length;
+            document.getElementById("statExcel").innerText = data.filter(d => d.portalType === "Excel Assessment").length;
+            document.getElementById("statPPT").innerText = data.filter(d => d.portalType === "PowerPoint Assessment").length;
+            
+            const totalScore = data.reduce((acc, d) => acc + d.score, 0);
+            document.getElementById("statAvgScore").innerText = data.length ? `${(totalScore / data.length).toFixed(1)} / 10` : "0 / 10";
+
+            // Table
+            const tbody = document.getElementById("adminSubmissionsTable");
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-400">No submissions found yet.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = data.map(sub => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3">
+                        <div class="font-bold text-gray-900">${sub.student.name}</div>
+                        <div class="text-[10px] text-gray-500">${sub.student.roll} • ${sub.student.dept} (${sub.student.sem})</div>
+                    </td>
+                    <td class="p-3">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${sub.portalType === 'Excel Assessment' ? 'bg-emerald-100 text-emerald-800' : 'bg-orange-100 text-orange-800'}">
+                            ${sub.portalType}
+                        </span>
+                    </td>
+                    <td class="p-3">
+                        <span class="font-bold text-emerald-600">${sub.score}</span> / 10
+                    </td>
+                    <td class="p-3 text-gray-500">
+                        ${sub.descriptive ? `${sub.descriptive.split(' ').length} words` : '<span class="text-gray-300">Empty</span>'}
+                    </td>
+                    <td class="p-3 text-gray-500">${sub.submittedAt}</td>
+                    <td class="p-3 text-right space-x-2">
+                        <button onclick="viewStudentDetail(${sub.id})" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1 rounded text-[10px]">
+                            View Sheet
+                        </button>
+                    </td>
+                </tr>
+            `).join("");
+        }
+
+        function viewStudentDetail(id) {
+            const data = JSON.parse(localStorage.getItem("assessment_submissions") || "[]");
+            const sub = data.find(d => d.id === id);
+            if (!sub) return;
+
+            document.getElementById("detailStudentName").innerText = sub.student.name;
+            document.getElementById("detailStudentMeta").innerText = `Roll: ${sub.student.roll} | Dept: ${sub.student.dept} | ${sub.student.sem} | Portal: ${sub.portalType}`;
+
+            let bodyHtml = `
+                <div class="bg-slate-50 p-3 rounded border">
+                    <strong class="text-slate-700">MCQ Performance:</strong> ${sub.score} / 10 Correct Answers
+                </div>
+                <div class="space-y-1">
+                    <strong class="text-slate-700">Descriptive Q11 Response:</strong>
+                    <div class="p-3 bg-gray-50 border rounded text-gray-800 whitespace-pre-wrap">${sub.descriptive || 'No response provided.'}</div>
+                </div>
+            `;
+
+            if (sub.excelData) {
+                bodyHtml += `
+                    <div class="space-y-1">
+                        <strong class="text-slate-700">Excel Virtual Sheet Snapshot:</strong>
+                        <div class="bg-slate-100 p-2 rounded border overflow-x-auto">
+                            <table class="w-full text-[10px] border-collapse bg-white font-mono">
+                                <thead><tr class="bg-slate-200">
+                                    <th class="p-1 border">Cell</th><th class="p-1 border">Entered Formula/Value</th><th class="p-1 border">Evaluated Value</th>
+                                </tr></thead>
+                                <tbody>
+                                    ${Object.keys(sub.excelData).map(k => `
+                                        <tr>
+                                            <td class="p-1 border font-bold text-center">${k}</td>
+                                            <td class="p-1 border">${sub.excelData[k].val || ''}</td>
+                                            <td class="p-1 border text-emerald-700 font-bold">${evaluateCellValue(sub.excelData[k].val)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+
+            document.getElementById("detailModalBody").innerHTML = bodyHtml;
+            document.getElementById("downloadIndividualExcelBtn").onclick = () => exportSingleToExcel(sub);
+            document.getElementById("studentDetailModal").classList.remove("hidden");
+        }
+
+        function closeDetailModal() {
+            document.getElementById("studentDetailModal").classList.add("hidden");
+        }
+
+        function clearAllData() {
+            if (confirm("Are you sure you want to delete all student submission records?")) {
+                localStorage.removeItem("assessment_submissions");
+                renderAdminDashboard();
+            }
+        }
+
+        // EXCEL EXPORT (SHEETJS)
+        function exportAllToExcel() {
+            const data = JSON.parse(localStorage.getItem("assessment_submissions") || "[]");
+            if (!data.length) return alert("No submissions to export.");
+
+            const wb = XLSX.utils.book_new();
+
+            // Summary Sheet
+            const summaryRows = data.map(d => ({
+                "Student Name": d.student.name,
+                "Roll Number": d.student.roll,
+                "Department": d.student.dept,
+                "Semester": d.student.sem,
+                "Portal": d.portalType,
+                "MCQ Score": d.score,
+                "Submission Time": d.submittedAt
+            }));
+            const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+            XLSX.utils.book_append_sheet(wb, wsSummary, "Summary & Scores");
+
+            // Save File
+            XLSX.writeFile(wb, "All_Assessment_Submissions.xlsx");
+        }
+
+        function exportSingleToExcel(sub) {
+            const wb = XLSX.utils.book_new();
+
+            const profileData = [
+                { "Field": "Name", "Value": sub.student.name },
+                { "Field": "Roll No", "Value": sub.student.roll },
+                { "Field": "Department", "Value": sub.student.dept },
+                { "Field": "Semester", "Value": sub.student.sem },
+                { "Field": "Portal Type", "Value": sub.portalType },
+                { "Field": "MCQ Score", "Value": `${sub.score} / 10` },
+                { "Field": "Submission Date", "Value": sub.submittedAt }
+            ];
+            const wsProfile = XLSX.utils.json_to_sheet(profileData);
+            XLSX.utils.book_append_sheet(wb, wsProfile, "Candidate Profile");
+
+            XLSX.writeFile(wb, `${sub.student.name.replace(/\s+/g, '_')}_Report.xlsx`);
+        }
+    </script>
+</body>
+</html>
